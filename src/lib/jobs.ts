@@ -9,28 +9,51 @@ export async function runSponsorBackfill() {
   await ensureSchema();
   const sql = getSql();
   const startPage = Number(await getState("sponsor_backfill_next_page", String(limits.sponsorBackfillStartPage)));
-  const runId = await startRun("sponsor-backfill", { startPage, pages: limits.sponsorBackfillPages });
+  const startLineOffset = Number(await getState("sponsor_backfill_line_offset", "0"));
+  const runId = await startRun("sponsor-backfill", {
+    startPage,
+    startLineOffset,
+    pages: limits.sponsorBackfillPages,
+    lineLimit: limits.sponsorBackfillLines,
+  });
   let processed = 0;
   let created = 0;
   let done = false;
+  let paused = false;
   let error: string | null = null;
   let lastPage = startPage - 1;
+  let lastLineOffset = startLineOffset;
+  let remainingLines = limits.sponsorBackfillLines;
 
   try {
     if ((await getState("sponsor_backfill_done")) === "1") {
       done = true;
     } else {
-      for (let page = startPage; page < startPage + limits.sponsorBackfillPages; page++) {
+      pageLoop:
+      for (let page = startPage; page < startPage + limits.sponsorBackfillPages && remainingLines > 0; page++) {
         const url = urls.sponsorUpdatesBase.replace("{page}", String(page));
         const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "ClosingGapCompliance/1.0" } });
         if (res.status === 404) {
           await setState("sponsor_backfill_done", "1");
+          await setState("sponsor_backfill_line_offset", "0");
           done = true;
           break;
         }
         if (!res.ok) throw new Error(`Update page ${page} HTTP ${res.status}`);
         const body = await res.text();
-        for (const line of body.split(/\r?\n/)) {
+        const lines = body.split(/\r?\n/);
+        const fromLine = page === startPage ? Math.max(0, Math.min(startLineOffset, lines.length)) : 0;
+        for (let lineIndex = fromLine; lineIndex < lines.length; lineIndex++) {
+          if (remainingLines <= 0) {
+            await setState("sponsor_backfill_next_page", String(page));
+            await setState("sponsor_backfill_line_offset", String(lineIndex));
+            lastPage = page;
+            lastLineOffset = lineIndex;
+            paused = true;
+            break pageLoop;
+          }
+          remainingLines--;
+          const line = lines[lineIndex];
           if (!line.trim()) continue;
           const event = safeJson(line);
           if (!event || event.type !== "removed") continue;
@@ -61,14 +84,16 @@ export async function runSponsorBackfill() {
           if (inserted.length) created++;
         }
         lastPage = page;
+        lastLineOffset = 0;
         await setState("sponsor_backfill_next_page", String(page + 1));
+        await setState("sponsor_backfill_line_offset", "0");
       }
     }
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
   }
-  await finishRun(runId, { processed, created, error, meta: { lastPage, done } });
-  return { processed, created, error, lastPage, done };
+  await finishRun(runId, { processed, created, error, meta: { lastPage, lastLineOffset, done, paused } });
+  return { processed, created, error, lastPage, lastLineOffset, done, paused };
 }
 
 export async function runSponsorEnrich() {

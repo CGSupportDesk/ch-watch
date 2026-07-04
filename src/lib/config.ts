@@ -2,6 +2,7 @@ export const MIN_EVENT_DATE = process.env.MIN_EVENT_DATE || "2026-01-01";
 
 export const limits = {
   sponsorBackfillPages: boundedInt(process.env.SPONSOR_BACKFILL_PAGES_PER_RUN, 5, 1, 20),
+  sponsorBackfillLines: boundedInt(process.env.SPONSOR_BACKFILL_LINES_PER_RUN, 1000, 100, 10_000),
   sponsorBackfillStartPage: boundedInt(process.env.SPONSOR_BACKFILL_START_PAGE, 324, 1, 100_000),
   sponsorEnrichLimit: boundedInt(process.env.SPONSOR_ENRICH_LIMIT_PER_RUN, 25, 1, 100),
   directorMonitorLimit: boundedInt(process.env.DIRECTOR_MONITOR_LIMIT_PER_RUN, 50, 1, 200),
