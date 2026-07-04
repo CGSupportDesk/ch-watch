@@ -126,14 +126,22 @@ export async function runSponsorEnrich() {
           continue;
         }
         const profile = await companyProfile(match.companyNumber);
+        let officerNotes = "";
         if (profile) {
           await upsertCompany(profile);
-          await syncOfficers(match.companyNumber);
+          try {
+            await syncOfficers(match.companyNumber);
+          } catch (officerError) {
+            officerNotes =
+              officerError instanceof Error
+                ? `; officer sync pending: ${officerError.message}`
+                : `; officer sync pending: ${String(officerError)}`;
+          }
         }
         await sql`
           UPDATE sponsor_removed
           SET company_number = ${match.companyNumber}, match_status = ${match.status},
-              match_notes = ${match.notes}, enriched_at = now()
+              match_notes = ${match.notes + officerNotes}, enriched_at = now()
           WHERE id = ${row.id}
         `;
         updated++;

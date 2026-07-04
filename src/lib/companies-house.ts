@@ -103,7 +103,7 @@ export async function companyProfile(companyNumber: string) {
 }
 
 export async function companyOfficers(companyNumber: string) {
-  const params = new URLSearchParams({ items_per_page: "100", register_view: "true" });
+  const params = new URLSearchParams({ items_per_page: "100" });
   const json = await chFetch<{ items?: OfficerItem[] }>(`/company/${encodeURIComponent(companyNumber)}/officers?${params}`);
   return json?.items || [];
 }
