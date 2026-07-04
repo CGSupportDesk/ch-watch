@@ -1,0 +1,24 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/sponsor-backfill",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/sponsor-enrich",
+      "schedule": "15 1 * * *"
+    },
+    {
+      "path": "/api/cron/director-monitor",
+      "schedule": "30 1 * * *"
+    },
+    {
+      "path": "/api/cron/website-discover",
+      "schedule": "45 1 * * *"
+    },
+    {
+      "path": "/api/cron/contact-scrape",
+      "schedule": "0 2 * * *"
+    }
+  ]
+}
