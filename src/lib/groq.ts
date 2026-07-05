@@ -45,7 +45,9 @@ Rules:
   const content = String(json.choices?.[0]?.message?.content || "");
   const parsed = WebsiteResult.safeParse(parseJsonObject(content));
   if (!parsed.success) return { website: null, confidence: 0, reason: "Bad Groq JSON", sources: [] as string[] };
-  const website = normalizeOfficialWebsite(parsed.data.website);
+  const website = [parsed.data.website, ...parsed.data.sources]
+    .map((candidate) => normalizeOfficialWebsite(candidate))
+    .find(Boolean);
   const confidence = Math.max(0, Math.min(1, parsed.data.confidence || 0));
   if (!website || confidence < 0.65) {
     return { website: null, confidence, reason: parsed.data.reason || "No confident official website", sources: parsed.data.sources };
@@ -118,6 +120,7 @@ function normalizeOfficialWebsite(raw: string | null | undefined) {
     return null;
   }
   const host = parsed.hostname.toLowerCase();
+  if (!host.includes(".") || host.includes("..")) return null;
   const blocked = [
     "gov.uk",
     "companieshouse.gov.uk",
