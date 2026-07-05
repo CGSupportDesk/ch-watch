@@ -3,6 +3,7 @@ import { companyProfile, chCallCount, matchCompanyNumber, resetChCallCount, sync
 import { type DbRow, ensureSchema, finishRun, getSql, getState, setState, startRun } from "./db";
 import { findOfficialWebsite } from "./groq";
 import { scrapeWebsite } from "./contacts";
+import { scoreContact } from "./contact-quality";
 import { clean, sha1, sponsorKey } from "./text";
 
 export async function runSponsorBackfill() {
@@ -261,6 +262,7 @@ export async function runContactScrape() {
   const runId = await startRun("contact-scrape");
   let processed = 0;
   let created = 0;
+  let updated = 0;
   let error: string | null = null;
   try {
     const rows = (await sql`
@@ -276,22 +278,36 @@ export async function runContactScrape() {
       try {
         const result = await scrapeWebsite(String(row.company_name), String(row.website_url));
         for (const [email, source] of result.emails) {
-          const inserted = (await sql`
-            INSERT INTO scraped_contacts (company_number, source_url, contact_type, value)
-            VALUES (${row.company_number}, ${source}, 'email', ${email})
-            ON CONFLICT (company_number, contact_type, value) DO NOTHING
-            RETURNING id
+          const quality = scoreContact({ contactType: "email", value: email, sourceUrl: source, websiteUrl: String(row.website_url) });
+          const saved = (await sql`
+            INSERT INTO scraped_contacts (company_number, source_url, contact_type, value, quality_score, quality_label, quality_reason)
+            VALUES (${row.company_number}, ${source}, 'email', ${email}, ${quality.score}, ${quality.label}, ${quality.reason})
+            ON CONFLICT (company_number, contact_type, value)
+            DO UPDATE SET source_url = excluded.source_url,
+                          quality_score = excluded.quality_score,
+                          quality_label = excluded.quality_label,
+                          quality_reason = excluded.quality_reason,
+                          scraped_at = now()
+            RETURNING (xmax = 0) AS inserted
           `) as DbRow[];
-          if (inserted.length) created++;
+          if (wasInserted(saved[0]?.inserted)) created++;
+          else if (saved.length) updated++;
         }
         for (const [phone, source] of result.phones) {
-          const inserted = (await sql`
-            INSERT INTO scraped_contacts (company_number, source_url, contact_type, value)
-            VALUES (${row.company_number}, ${source}, 'phone', ${phone})
-            ON CONFLICT (company_number, contact_type, value) DO NOTHING
-            RETURNING id
+          const quality = scoreContact({ contactType: "phone", value: phone, sourceUrl: source, websiteUrl: String(row.website_url) });
+          const saved = (await sql`
+            INSERT INTO scraped_contacts (company_number, source_url, contact_type, value, quality_score, quality_label, quality_reason)
+            VALUES (${row.company_number}, ${source}, 'phone', ${phone}, ${quality.score}, ${quality.label}, ${quality.reason})
+            ON CONFLICT (company_number, contact_type, value)
+            DO UPDATE SET source_url = excluded.source_url,
+                          quality_score = excluded.quality_score,
+                          quality_label = excluded.quality_label,
+                          quality_reason = excluded.quality_reason,
+                          scraped_at = now()
+            RETURNING (xmax = 0) AS inserted
           `) as DbRow[];
-          if (inserted.length) created++;
+          if (wasInserted(saved[0]?.inserted)) created++;
+          else if (saved.length) updated++;
         }
         await sql`UPDATE companies SET last_website_scrape = now() WHERE company_number = ${row.company_number}`;
       } catch {
@@ -301,8 +317,8 @@ export async function runContactScrape() {
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
   }
-  await finishRun(runId, { processed, created, error });
-  return { processed, created, error };
+  await finishRun(runId, { processed, created, updated, error });
+  return { processed, created, updated, error };
 }
 
 function safeJson(line: string) {
@@ -317,4 +333,8 @@ function isoDate(value: unknown) {
   const time = Date.parse(String(value || ""));
   if (!Number.isFinite(time)) return null;
   return new Date(time).toISOString().slice(0, 10);
+}
+
+function wasInserted(value: unknown) {
+  return value === true || value === "t" || value === "true" || value === 1;
 }

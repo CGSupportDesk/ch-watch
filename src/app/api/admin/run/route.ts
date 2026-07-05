@@ -6,6 +6,7 @@ import {
   runSponsorEnrich,
   runWebsiteDiscover,
 } from "@/lib/jobs";
+import { getSessionFromRequest } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +21,12 @@ const jobs = {
 };
 
 export async function POST(request: NextRequest) {
+  if (!getSessionFromRequest(request)) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("next", "/");
+    return NextResponse.redirect(loginUrl, 303);
+  }
+
   const form = await request.formData();
   const job = String(form.get("job") || "");
   const target = jobs[job as keyof typeof jobs];

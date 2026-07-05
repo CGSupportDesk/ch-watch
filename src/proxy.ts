@@ -1,23 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionFromRequest } from "@/lib/session";
 
 export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   if (isPublicPath(pathname)) return NextResponse.next();
 
-  const user = process.env.APP_USER;
-  const password = process.env.APP_PASSWORD;
-  if (!user || !password) return NextResponse.next();
+  if (!process.env.APP_USER || !process.env.APP_PASSWORD) return NextResponse.next();
+  if (getSessionFromRequest(request)) return NextResponse.next();
 
-  const auth = request.headers.get("authorization");
-  if (!auth?.startsWith("Basic ")) return challenge();
-
-  const decoded = Buffer.from(auth.slice("Basic ".length), "base64").toString("utf8");
-  const separator = decoded.indexOf(":");
-  const givenUser = separator >= 0 ? decoded.slice(0, separator) : "";
-  const givenPassword = separator >= 0 ? decoded.slice(separator + 1) : "";
-
-  if (givenUser !== user || givenPassword !== password) return challenge();
-  return NextResponse.next();
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+  const url = new URL("/login", request.url);
+  url.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
+  return NextResponse.redirect(url);
 }
 
 export const config = {
@@ -26,17 +22,10 @@ export const config = {
 
 function isPublicPath(pathname: string) {
   return (
+    pathname === "/login" ||
     pathname.startsWith("/api/cron") ||
+    pathname.startsWith("/api/auth/login") ||
     pathname.startsWith("/api/health") ||
     /\.(?:ico|svg|png|jpg|jpeg|gif|webp|avif|txt|xml|webmanifest)$/i.test(pathname)
   );
-}
-
-function challenge() {
-  return new NextResponse("Authentication required", {
-    status: 401,
-    headers: {
-      "WWW-Authenticate": 'Basic realm="CH Watch"',
-    },
-  });
 }

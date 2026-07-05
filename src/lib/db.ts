@@ -120,11 +120,18 @@ export async function ensureSchema() {
       source_url TEXT NOT NULL,
       contact_type TEXT NOT NULL,
       value TEXT NOT NULL,
+      quality_score INTEGER,
+      quality_label TEXT,
+      quality_reason TEXT,
       scraped_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       UNIQUE(company_number, contact_type, value)
     )
   `;
+  await sql`ALTER TABLE scraped_contacts ADD COLUMN IF NOT EXISTS quality_score INTEGER`;
+  await sql`ALTER TABLE scraped_contacts ADD COLUMN IF NOT EXISTS quality_label TEXT`;
+  await sql`ALTER TABLE scraped_contacts ADD COLUMN IF NOT EXISTS quality_reason TEXT`;
   await sql`CREATE INDEX IF NOT EXISTS scraped_contacts_company_idx ON scraped_contacts(company_number)`;
+  await sql`CREATE INDEX IF NOT EXISTS scraped_contacts_quality_idx ON scraped_contacts(quality_label, quality_score DESC)`;
   await sql`
     CREATE TABLE IF NOT EXISTS runs (
       id BIGSERIAL PRIMARY KEY,
