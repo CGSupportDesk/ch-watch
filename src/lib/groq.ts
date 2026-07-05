@@ -149,12 +149,28 @@ function normalizeOfficialWebsite(raw: string | null | undefined) {
 }
 
 export function cleanEmails(items: string[]) {
+  const blockedDomains = new Set([
+    "email.com",
+    "example.com",
+    "example.co.uk",
+    "company.site",
+    "domain.com",
+    "test.com",
+  ]);
+  const blockedLocals = new Set(["john.doe", "jane.doe", "example", "test", "user", "yourname"]);
   return Array.from(
     new Set(
       items
         .map((value) => value.toLowerCase().trim())
         .filter((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
-        .filter((value) => !/\.(png|jpe?g|gif|svg|webp|ico|css|js)$/i.test(value)),
+        .filter((value) => !/\.(png|jpe?g|gif|svg|webp|ico|css|js)$/i.test(value))
+        .filter((value) => {
+          const [local, domain] = value.split("@");
+          if (!local || !domain) return false;
+          if (blockedLocals.has(local) || local.includes("example")) return false;
+          if (blockedDomains.has(domain) || domain.startsWith("example.")) return false;
+          return true;
+        }),
     ),
   );
 }
@@ -164,6 +180,7 @@ export function cleanPhones(items: string[]) {
     new Set(
       items
         .map((value) => value.replace(/[^\d+]/g, ""))
+        .map((value) => (value.startsWith("+440") ? `+44${value.slice(4)}` : value))
         .map((value) => (value.startsWith("+44") ? value : value.startsWith("0") ? `+44${value.slice(1)}` : ""))
         .filter((value) => {
           const digits = value.replace(/\D/g, "");
