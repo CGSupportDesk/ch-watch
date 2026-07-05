@@ -12,6 +12,21 @@ const ContactResult = z.object({
   phones: z.array(z.string()).optional().default([]),
 });
 
+const PublicContactResult = z.object({
+  contacts: z
+    .array(
+      z.object({
+        type: z.enum(["email", "phone"]),
+        value: z.string(),
+        source_url: z.string(),
+        confidence: z.number().optional().default(0),
+        reason: z.string().optional().default(""),
+      }),
+    )
+    .optional()
+    .default([]),
+});
+
 export async function findOfficialWebsite(input: {
   companyName: string;
   town?: string | null;
@@ -86,6 +101,56 @@ export async function extractContactsWithGroq(input: { companyName: string; webs
   };
 }
 
+export async function searchPublicContactsWithGroq(input: { companyName: string; website: string }) {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) return { emails: [] as Array<{ value: string; sourceUrl: string }>, phones: [] as Array<{ value: string; sourceUrl: string }> };
+  const prompt = `Use web search to find public business contact details for this UK company.
+
+Company: ${input.companyName}
+Official website: ${input.website}
+
+Return JSON only:
+{"contacts":[{"type":"email","value":"info@example.co.uk","source_url":"https://example.co.uk/contact","confidence":0.85,"reason":"visible on official contact page"}]}
+
+Rules:
+- Only include emails or phone numbers that are publicly visible in a source result/page.
+- Do not invent, guess, infer, or create likely emails.
+- Prefer the company's official website and official contact pages.
+- Do not include Companies House, GOV.UK, licensed-sponsors-uk.com, Gazette, LinkedIn, Facebook, Instagram, Google Maps, job boards, directories, data brokers, PDFs, or news pages as source URLs.
+- Do not include personal director contact details unless the company itself publishes them as a business contact.
+- Return no more than 3 emails and 3 phone numbers.
+- If no public email or phone is visible, return {"contacts":[]}.`;
+
+  const json = await groqChat(key, {
+    model: process.env.GROQ_WEB_SEARCH_MODEL || "groq/compound-mini",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0,
+    max_completion_tokens: 700,
+  });
+  const content = String(json.choices?.[0]?.message?.content || "");
+  const parsed = PublicContactResult.safeParse(parseJsonObject(content));
+  if (!parsed.success) return { emails: [] as Array<{ value: string; sourceUrl: string }>, phones: [] as Array<{ value: string; sourceUrl: string }> };
+
+  const emails: Array<{ value: string; sourceUrl: string }> = [];
+  const phones: Array<{ value: string; sourceUrl: string }> = [];
+  for (const contact of parsed.data.contacts) {
+    if ((contact.confidence || 0) < 0.55) continue;
+    const sourceUrl = normalizeContactSource(contact.source_url);
+    if (!sourceUrl) continue;
+    if (contact.type === "email") {
+      for (const value of cleanEmails([contact.value])) emails.push({ value, sourceUrl });
+    }
+    if (contact.type === "phone") {
+      for (const value of cleanPhones([contact.value])) phones.push({ value, sourceUrl });
+    }
+  }
+
+  return {
+    emails: uniqueContacts(emails).slice(0, 3),
+    phones: uniqueContacts(phones).slice(0, 3),
+  };
+}
+
 async function groqChat(key: string, payload: Record<string, unknown>) {
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -121,6 +186,26 @@ function normalizeOfficialWebsite(raw: string | null | undefined) {
   }
   const host = parsed.hostname.toLowerCase();
   if (!host.includes(".") || host.includes("..")) return null;
+  if (isBlockedContactHost(host)) return null;
+  return `${parsed.protocol}//${host}`;
+}
+
+function normalizeContactSource(raw: string | null | undefined) {
+  if (!raw) return null;
+  let url = raw.trim();
+  if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (isBlockedContactHost(host)) return null;
+    parsed.hash = "";
+    return `${parsed.protocol}//${host}${parsed.pathname}${parsed.search}`;
+  } catch {
+    return null;
+  }
+}
+
+function isBlockedContactHost(host: string) {
   const blocked = [
     "gov.uk",
     "companieshouse.gov.uk",
@@ -144,8 +229,17 @@ function normalizeOfficialWebsite(raw: string | null | undefined) {
     "reed.co.uk",
     "totaljobs.com",
   ];
-  if (blocked.some((bad) => host === bad || host.endsWith(`.${bad}`))) return null;
-  return `${parsed.protocol}//${host}`;
+  return blocked.some((bad) => host === bad || host.endsWith(`.${bad}`));
+}
+
+function uniqueContacts(items: Array<{ value: string; sourceUrl: string }>) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = item.value.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export function cleanEmails(items: string[]) {

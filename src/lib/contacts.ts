@@ -1,4 +1,4 @@
-import { extractContactsWithGroq, cleanEmails, cleanPhones } from "./groq";
+import { extractContactsWithGroq, searchPublicContactsWithGroq, cleanEmails, cleanPhones } from "./groq";
 
 export type ScrapeResult = {
   emails: Map<string, string>;
@@ -68,6 +68,21 @@ export async function scrapeWebsite(companyName: string, website: string) {
       result.pages[`${base}/#groq-ai-contact-extract`] = "ai";
     } catch (error) {
       result.pages[`${base}/#groq-ai-contact-extract`] = error instanceof Error ? error.message : "error";
+    }
+  }
+
+  if (process.env.GROQ_API_KEY && (result.emails.size === 0 || result.phones.size === 0)) {
+    try {
+      const web = await searchPublicContactsWithGroq({ companyName, website: base });
+      if (result.emails.size === 0) {
+        for (const email of web.emails) result.emails.set(email.value, email.sourceUrl);
+      }
+      if (result.phones.size === 0) {
+        for (const phone of web.phones) result.phones.set(phone.value, phone.sourceUrl);
+      }
+      result.pages[`${base}/#groq-web-contact-search`] = "ai-web";
+    } catch (error) {
+      result.pages[`${base}/#groq-web-contact-search`] = error instanceof Error ? error.message : "error";
     }
   }
 

@@ -6,7 +6,7 @@ import { scrapeWebsite } from "./contacts";
 import { scoreContact } from "./contact-quality";
 import { clean, sha1, sponsorKey } from "./text";
 
-const CONTACT_SCRAPE_VERSION = 3;
+const CONTACT_SCRAPE_VERSION = 4;
 
 export async function runSponsorBackfill() {
   await ensureSchema();

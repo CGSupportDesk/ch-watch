@@ -1,8 +1,13 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
   <rect width="180" height="180" rx="42" fill="#F5F5F7"/>
   <rect x="18" y="18" width="144" height="144" rx="42" fill="#1D1D1F"/>
-  <path d="M53 100c0-25.6 16.2-46.5 40.5-46.5 12.4 0 21.9 4.8 28.4 13" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round"/>
-  <path d="M131 72V49M131 72h-23" stroke="#34C759" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M130 113c-6.6 8.4-16.6 13.9-29.8 13.9-14.4 0-26.8-7.1-34.2-17.9" stroke="#007AFF" stroke-width="12" stroke-linecap="round"/>
-  <circle cx="133" cy="119" r="14" fill="#FF9500"/>
+  <rect x="30" y="30" width="120" height="120" rx="34" fill="url(#paint0_linear)"/>
+  <text x="90" y="108" text-anchor="middle" fill="#FFFFFF" font-family="Geist, Inter, Arial, sans-serif" font-size="58" font-weight="800" letter-spacing="-3">CW</text>
+  <circle cx="133" cy="48" r="11" fill="#34C759"/>
+  <defs>
+    <linearGradient id="paint0_linear" x1="42" y1="38" x2="140" y2="145" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2C2C2E"/>
+      <stop offset="1" stop-color="#0A84FF"/>
+    </linearGradient>
+  </defs>
 </svg>
