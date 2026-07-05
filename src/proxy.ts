@@ -25,7 +25,11 @@ export const config = {
 };
 
 function isPublicPath(pathname: string) {
-  return pathname.startsWith("/api/cron") || pathname.startsWith("/api/health");
+  return (
+    pathname.startsWith("/api/cron") ||
+    pathname.startsWith("/api/health") ||
+    /\.(?:ico|svg|png|jpg|jpeg|gif|webp|avif|txt|xml|webmanifest)$/i.test(pathname)
+  );
 }
 
 function challenge() {
