@@ -6,6 +6,8 @@ import { scrapeWebsite } from "./contacts";
 import { scoreContact } from "./contact-quality";
 import { clean, sha1, sponsorKey } from "./text";
 
+const CONTACT_SCRAPE_VERSION = 2;
+
 export async function runSponsorBackfill() {
   await ensureSchema();
   const sql = getSql();
@@ -269,7 +271,11 @@ export async function runContactScrape() {
       SELECT company_number, company_name, website_url
       FROM companies
       WHERE website_url IS NOT NULL AND website_url <> ''
-        AND (last_website_scrape IS NULL OR last_website_scrape < now() - interval '30 days')
+        AND (
+          last_website_scrape IS NULL OR
+          last_website_scrape < now() - interval '30 days' OR
+          contact_scrape_version < ${CONTACT_SCRAPE_VERSION}
+        )
       ORDER BY first_seen DESC
       LIMIT ${limits.contactScrapeLimit}
     `) as DbRow[];
@@ -309,9 +315,17 @@ export async function runContactScrape() {
           if (wasInserted(saved[0]?.inserted)) created++;
           else if (saved.length) updated++;
         }
-        await sql`UPDATE companies SET last_website_scrape = now() WHERE company_number = ${row.company_number}`;
+        await sql`
+          UPDATE companies
+          SET last_website_scrape = now(), contact_scrape_version = ${CONTACT_SCRAPE_VERSION}
+          WHERE company_number = ${row.company_number}
+        `;
       } catch {
-        await sql`UPDATE companies SET last_website_scrape = now() WHERE company_number = ${row.company_number}`;
+        await sql`
+          UPDATE companies
+          SET last_website_scrape = now(), contact_scrape_version = ${CONTACT_SCRAPE_VERSION}
+          WHERE company_number = ${row.company_number}
+        `;
       }
     }
   } catch (e) {

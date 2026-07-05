@@ -68,12 +68,14 @@ export async function ensureSchema() {
       website_discovery_status TEXT,
       website_discovery_notes TEXT,
       last_website_scrape TIMESTAMPTZ,
+      contact_scrape_version INTEGER NOT NULL DEFAULT 0,
       officers_synced_at TIMESTAMPTZ,
       first_seen TIMESTAMPTZ NOT NULL DEFAULT now(),
       last_synced TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `;
   await sql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS officers_synced_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS contact_scrape_version INTEGER NOT NULL DEFAULT 0`;
   await sql`CREATE INDEX IF NOT EXISTS companies_status_idx ON companies(status)`;
   await sql`CREATE INDEX IF NOT EXISTS companies_website_idx ON companies(website_url)`;
   await sql`
