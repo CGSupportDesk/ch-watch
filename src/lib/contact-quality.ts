@@ -27,12 +27,15 @@ export function scoreContact(input: {
     if (domain && website && sameBusinessDomain(domain, website.hostname)) {
       score += 22;
       reasons.push("email domain matches website");
+    } else if (domain && website && !isFreeMailbox(domain)) {
+      score -= 12;
+      reasons.push("email domain differs from website");
     }
     if (local && /^(info|contact|hello|admin|office|sales|support|enquiries|recruitment|careers|team)$/i.test(local)) {
       score += 18;
       reasons.push("business inbox");
     }
-    if (domain && /^(gmail|outlook|hotmail|yahoo|icloud)\./i.test(domain)) {
+    if (domain && isFreeMailbox(domain)) {
       score -= 18;
       reasons.push("free mailbox domain");
     }
@@ -56,6 +59,10 @@ export function scoreContact(input: {
     label: finalScore >= 75 ? "high" : finalScore >= 50 ? "medium" : "low",
     reason: reasons.join("; ") || "basic public contact match",
   };
+}
+
+function isFreeMailbox(domain: string) {
+  return /^(gmail|outlook|hotmail|yahoo|icloud|aol|protonmail)\./i.test(domain);
 }
 
 function safeUrl(value: string) {
