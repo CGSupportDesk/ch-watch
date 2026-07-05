@@ -156,8 +156,12 @@ export function cleanEmails(items: string[]) {
     "company.site",
     "domain.com",
     "test.com",
+    "sentry.io",
+    "sentry.wixpress.com",
+    "sentry-next.wixpress.com",
+    "wixpress.com",
   ]);
-  const blockedLocals = new Set(["john.doe", "jane.doe", "example", "test", "user", "yourname"]);
+  const blockedLocals = new Set(["john.doe", "jane.doe", "example", "test", "user", "yourname", "noreply", "no-reply"]);
   return Array.from(
     new Set(
       items
@@ -169,6 +173,8 @@ export function cleanEmails(items: string[]) {
           if (!local || !domain) return false;
           if (blockedLocals.has(local) || local.includes("example")) return false;
           if (blockedDomains.has(domain) || domain.startsWith("example.")) return false;
+          if (domain.endsWith(".wixpress.com") || domain.includes("sentry")) return false;
+          if (/^[a-f0-9]{24,}$/i.test(local)) return false;
           return true;
         }),
     ),
@@ -182,6 +188,7 @@ export function cleanPhones(items: string[]) {
         .map((value) => value.replace(/[^\d+]/g, ""))
         .map((value) => (value.startsWith("+440") ? `+44${value.slice(4)}` : value))
         .map((value) => (value.startsWith("+44") ? value : value.startsWith("0") ? `+44${value.slice(1)}` : ""))
+        .filter((value) => /^(\+441|\+442|\+443|\+447|\+448)/.test(value))
         .filter((value) => {
           const digits = value.replace(/\D/g, "");
           return digits.length >= 11 && digits.length <= 13 && !/(\d)\1{6,}/.test(digits);
