@@ -31,6 +31,7 @@ const CONTACT_PATHS = [
 
 const MAX_PAGES_PER_SITE = 12;
 const FETCH_TIMEOUT_MS = 12_000;
+const USER_AGENT = "CWWatch/1.0";
 
 export async function scrapeWebsite(companyName: string, website: string) {
   const base = normalizeBase(website);
@@ -38,6 +39,9 @@ export async function scrapeWebsite(companyName: string, website: string) {
   const urls = unique(CONTACT_PATHS.map((path) => `${base}${path}`));
   const result: ScrapeResult = { emails: new Map(), phones: new Map(), pages: {} };
   const texts: string[] = [];
+  for (const url of await discoverSitemapLinks(base)) {
+    if (!urls.includes(url)) urls.push(url);
+  }
 
   for (let index = 0; index < urls.length && index < MAX_PAGES_PER_SITE; index++) {
     const url = urls[index];
@@ -50,11 +54,12 @@ export async function scrapeWebsite(companyName: string, website: string) {
         if (!urls.includes(discovered)) urls.push(discovered);
       }
       const protectedEmails = decodeCloudflareEmails(html);
+      const structured = extractStructuredContacts(html);
       const text = htmlToText(`${html} ${protectedEmails.join(" ")}`);
       texts.push(`Source URL: ${url}\n${text}`);
       const found = extractContacts(text + " " + html);
-      for (const email of found.emails) result.emails.set(email, url);
-      for (const phone of found.phones) result.phones.set(phone, url);
+      for (const email of [...found.emails, ...structured.emails]) result.emails.set(email, url);
+      for (const phone of [...found.phones, ...structured.phones]) result.phones.set(phone, url);
     } catch (error) {
       result.pages[url] = error instanceof Error ? error.message : "error";
     }
@@ -107,7 +112,7 @@ async function fetchPage(url: string) {
   try {
     return await fetch(url, {
       headers: {
-        "User-Agent": "ClosingGapCompliance/1.0 (+https://theclosinggap.net)",
+        "User-Agent": USER_AGENT,
         Accept: "text/html,application/xhtml+xml",
       },
       redirect: "follow",
@@ -116,6 +121,68 @@ async function fetchPage(url: string) {
     });
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+async function discoverSitemapLinks(base: string) {
+  const candidates = [`${base}/sitemap.xml`, `${base}/sitemap_index.xml`];
+  const found: string[] = [];
+  for (const url of candidates) {
+    try {
+      const res = await fetchPage(url);
+      if (!res.ok) continue;
+      const xml = await res.text();
+      const locs = Array.from(xml.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/gi)).map((match) => decodeHtmlEntities(match[1] || "").trim());
+      for (const loc of locs) {
+        if (!isContactish(loc)) continue;
+        const sameSite = sameSiteUrl(base, loc);
+        if (sameSite) found.push(sameSite);
+      }
+    } catch {
+      // Sitemap discovery is only a bonus path.
+    }
+  }
+  return unique(found).slice(0, 8);
+}
+
+function extractStructuredContacts(html: string) {
+  const chunks: string[] = [];
+  for (const match of html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    chunks.push(decodeHtmlEntities(match[1] || ""));
+  }
+  for (const match of html.matchAll(/<(?:meta|link)\b[^>]*(?:itemprop|property|name)=["'](?:email|telephone|phone|contact:phone_number)["'][^>]*(?:content|href)=["']([^"']+)["'][^>]*>/gi)) {
+    chunks.push(decodeHtmlEntities(match[1] || ""));
+  }
+  for (const match of html.matchAll(/<(?:meta|link)\b[^>]*(?:content|href)=["']([^"']+)["'][^>]*(?:itemprop|property|name)=["'](?:email|telephone|phone|contact:phone_number)["'][^>]*>/gi)) {
+    chunks.push(decodeHtmlEntities(match[1] || ""));
+  }
+
+  const jsonContacts: string[] = [];
+  for (const chunk of chunks) {
+    try {
+      collectJsonStrings(JSON.parse(chunk), jsonContacts);
+    } catch {
+      jsonContacts.push(chunk);
+    }
+  }
+
+  return extractContacts(jsonContacts.join(" "));
+}
+
+function collectJsonStrings(value: unknown, output: string[]) {
+  if (typeof value === "string") {
+    output.push(value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectJsonStrings(item, output);
+    return;
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    for (const key of ["email", "telephone", "phone", "contactPoint", "contactPoints", "sameAs"]) {
+      if (key in record) collectJsonStrings(record[key], output);
+    }
   }
 }
 

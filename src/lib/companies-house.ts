@@ -82,7 +82,7 @@ async function chFetch<T>(path: string): Promise<T | null> {
     headers: {
       Authorization: `Basic ${auth}`,
       Accept: "application/json",
-      "User-Agent": "ClosingGapCompliance/1.0",
+      "User-Agent": "CWWatch/1.0",
     },
     cache: "no-store",
   });

@@ -1,13 +1,6 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
   <rect width="180" height="180" rx="42" fill="#F5F5F7"/>
-  <rect x="18" y="18" width="144" height="144" rx="42" fill="#1D1D1F"/>
-  <rect x="30" y="30" width="120" height="120" rx="34" fill="url(#paint0_linear)"/>
-  <text x="90" y="108" text-anchor="middle" fill="#FFFFFF" font-family="Geist, Inter, Arial, sans-serif" font-size="58" font-weight="800" letter-spacing="-3">CW</text>
-  <circle cx="133" cy="48" r="11" fill="#34C759"/>
-  <defs>
-    <linearGradient id="paint0_linear" x1="42" y1="38" x2="140" y2="145" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2C2C2E"/>
-      <stop offset="1" stop-color="#0A84FF"/>
-    </linearGradient>
-  </defs>
+  <path d="M136.4 47.2A63.3 63.3 0 1 0 137.8 133.6" stroke="#050505" stroke-width="20" stroke-linecap="butt"/>
+  <path d="M90 53.4v85.8l31.5-28.7 30.4 30.7" stroke="#050505" stroke-width="20" stroke-linecap="butt" stroke-linejoin="miter"/>
+  <path d="M113 47h26.4" stroke="#050505" stroke-width="20" stroke-linecap="butt"/>
 </svg>

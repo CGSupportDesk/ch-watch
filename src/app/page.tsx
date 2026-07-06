@@ -129,10 +129,9 @@ export default async function Home({ searchParams }: { searchParams?: Promise<Se
         <header className="flex flex-col gap-4 border-b border-black/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <Image alt="CH Watch" className="h-12 w-12 shrink-0" height="48" src="/brand-mark.svg" width="48" />
+              <Image alt="CW Watch" className="h-12 w-12 shrink-0" height="48" src="/brand-mark.png" width="48" />
               <div>
-                <p className="text-sm font-semibold text-[#6e6e73]">Closing Gap Compliance</p>
-                <h1 className="text-4xl font-semibold text-[#1d1d1f] sm:text-5xl">CH Watch</h1>
+                <h1 className="text-4xl font-semibold text-[#1d1d1f] sm:text-5xl">CW Watch</h1>
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm font-medium text-[#6e6e73]">

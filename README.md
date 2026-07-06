@@ -1,6 +1,6 @@
-# CH Watch
+# CW Watch
 
-Vercel version of the sponsor-removal watch app for Closing Gap Compliance.
+Vercel version of the sponsor-removal watch app.
 
 The app imports UK licensed sponsor removals from 2026 onward, matches each removed sponsor to Companies House, stores directors/officers and registered address, uses Groq to discover official websites, then scrapes public business emails and phone numbers from those websites.
 

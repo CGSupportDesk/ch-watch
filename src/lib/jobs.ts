@@ -6,7 +6,7 @@ import { scrapeWebsite } from "./contacts";
 import { scoreContact } from "./contact-quality";
 import { clean, sha1, sponsorKey } from "./text";
 
-const CONTACT_SCRAPE_VERSION = 4;
+const CONTACT_SCRAPE_VERSION = 5;
 
 export async function runSponsorBackfill() {
   await ensureSchema();
@@ -35,7 +35,7 @@ export async function runSponsorBackfill() {
       pageLoop:
       for (let page = startPage; page < startPage + limits.sponsorBackfillPages && remainingLines > 0; page++) {
         const url = urls.sponsorUpdatesBase.replace("{page}", String(page));
-        const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "ClosingGapCompliance/1.0" } });
+        const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "CWWatch/1.0" } });
         if (res.status === 404) {
           await setState("sponsor_backfill_done", "1");
           await setState("sponsor_backfill_line_offset", "0");

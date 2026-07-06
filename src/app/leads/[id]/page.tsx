@@ -95,7 +95,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
         <header className="flex flex-col gap-4 border-b border-black/10 pb-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
-            <Image alt="CH Watch" className="h-11 w-11 shrink-0" height="44" src="/brand-mark.svg" width="44" />
+            <Image alt="CW Watch" className="h-11 w-11 shrink-0" height="44" src="/brand-mark.png" width="44" />
             <div>
               <Link className="inline-flex items-center gap-2 text-sm font-semibold text-[#007aff] hover:underline" href="/">
                 <ArrowLeft className="h-4 w-4" />
